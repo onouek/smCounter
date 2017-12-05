@@ -44,8 +44,8 @@ def calProb(oneBC, mtDrop):
 
       # get unique bases. Make sure uniqBaseList contains 4 members, unless the barcode already contains more than or equal to 4 bases/indels
       # NOTE: existBase contains only the alleles, including indels, with at least 1 read in the MT. uniqBase may contain more. 
-      existBase = set([info[0][0] for info in oneBC.values()])
-      uniqBase = set([info[0][0] for info in oneBC.values()])
+      existBase = set([info[0][0] for info in list(oneBC.values())])
+      uniqBase = set([info[0][0] for info in list(oneBC.values())])
       if len(uniqBase) < 4:
         for b in atgc:
            if b not in uniqBase:
@@ -59,7 +59,7 @@ def calProb(oneBC, mtDrop):
       for b in uniqBaseList:
          prodP[b] = 1.0
 
-      for info in oneBC.values():
+      for info in list(oneBC.values()):
          base = info[0][0]
          # prob is the error probability
          prob = info[0][1]
@@ -80,10 +80,10 @@ def calProb(oneBC, mtDrop):
          ratio = (cnt[char] + 0.5) / (len(oneBC) + 0.5 * len(uniqBaseList))
          pcrP[char] = 10.0 ** (-6.0 * ratio)
 
-      for key in prodP.keys():
+      for key in list(prodP.keys()):
          if key in existBase:
             # tmpOut[key] is P(BC|key), or the likelihood of all reads in the barcode, given the true allele is *key*.  
-            tmpOut[key] = pcr_no_error * prodP[key] + rightP * min([pcrP[char] for char in pcrP.keys() if char != key])
+            tmpOut[key] = pcr_no_error * prodP[key] + rightP * min([pcrP[char] for char in list(pcrP.keys()) if char != key])
          else:
             tmpOut[key] = rightP
             for char in existBase:
@@ -92,7 +92,7 @@ def calProb(oneBC, mtDrop):
 
          sumP += tmpOut[key]
 
-      for key in prodP.iterkeys():
+      for key in prodP.keys():
          outDict[key] = 0.0 if sumP <= 0 else tmpOut[key] / sumP
 
    return outDict
@@ -219,7 +219,7 @@ def filterVariants(ref,alt,vtype,origAlt,origRef,usedMT,strongMTCnt,chrom,pos,hp
          fltr += 'SB;'
 
    # base quality filter. Reject if more than 40% reads are lowQ
-   if vtype == 'SNP' and origAlt in alleleCnt.keys() and origAlt in lowQReads.keys():
+   if vtype == 'SNP' and origAlt in list(alleleCnt.keys()) and origAlt in list(lowQReads.keys()):
       bqAlt =  1.0 * lowQReads[origAlt] / alleleCnt[origAlt] 
    else:
       bqAlt = 0.0
@@ -495,9 +495,9 @@ def vc(bamFile, chrom, pos, minBQ, minMQ, mtDepth, rpb, hpLen, mismatchThr, mtDr
       
    if len(bcDict) > ds:
       random.seed(pos)
-      bcKeys = random.sample(bcDict.keys(), ds)
+      bcKeys = random.sample(list(bcDict.keys()), ds)
    else:
-      bcKeys = bcDict.keys()
+      bcKeys = list(bcDict.keys())
    usedFrag = sum([len(bcDict[bc]) for bc in bcKeys])
 
    totalR1 = sum(r1Cnt.values())
@@ -505,13 +505,13 @@ def vc(bamFile, chrom, pos, minBQ, minMQ, mtDepth, rpb, hpLen, mismatchThr, mtDr
 
    for bc in bcKeys:
       bcProb = calProb(bcDict[bc], mtDrop)
-      for char in bcProb.iterkeys():
+      for char in bcProb.keys():
          x = 1.0 - bcProb[char]
          log10P = -math.log10(x) if x > 0.0 else 16.0
          predIndex[bc][char] = log10P
          finalDict[char] += log10P
 
-      max_base = [x for x in predIndex[bc].keys() if  predIndex[bc][x] == max(predIndex[bc].values())]
+      max_base = [x for x in list(predIndex[bc].keys()) if  predIndex[bc][x] == max(predIndex[bc].values())]
       if len(max_base) == 1:
          cons = max_base[0]
          MTCnt[cons] += 1
@@ -519,7 +519,7 @@ def vc(bamFile, chrom, pos, minBQ, minMQ, mtDepth, rpb, hpLen, mismatchThr, mtDr
             strongMTCnt[cons] += 1           
       # Tie in max predIndex is most likely due to single read MT. 
       elif len(bcDict[bc]) == 1:
-         cons = bcDict[bc].values()[0][0][0]
+         cons = list(bcDict[bc].values())[0][0][0]
          MTCnt[cons] += 1
 
       if len(bcDict[bc]) >= 3:
@@ -531,7 +531,7 @@ def vc(bamFile, chrom, pos, minBQ, minMQ, mtDepth, rpb, hpLen, mismatchThr, mtDr
       if len(bcDict[bc]) >= 10:
          MT10Cnt += 1
 
-   sortedList = sorted(finalDict.items(), key=operator.itemgetter(1), reverse=True)
+   sortedList = sorted(list(finalDict.items()), key=operator.itemgetter(1), reverse=True)
    maxBase = sortedList[0][0]
    maxPI   = sortedList[0][1]
    secondMaxBase = sortedList[1][0]
@@ -606,7 +606,7 @@ def vc_wrapper(*args):
    try:
       output = vc(*args)
    except:
-      print("Exception thrown in vc() function at genome location:", args[1], args[2])
+      print(("Exception thrown in vc() function at genome location:", args[1], args[2]))
       output = "Exception thrown!\n" + traceback.format_exc()
    return output
 
@@ -646,7 +646,7 @@ def main(args):
 
    # log run start
    timeStart = datetime.datetime.now()
-   print("smCounter started at " + str(timeStart))
+   print(("smCounter started at " + str(timeStart)))
    
    # if argument parser global not assigned yet, initialize it
    if parser == None:
@@ -655,7 +655,7 @@ def main(args):
    # get arguments passed in via a lambda object (e.g. from upstream pipeline)
    if type(args) is not argparse.Namespace:
       argsList = []
-      for argName, argVal in args.iteritems():
+      for argName, argVal in args.items():
          argsList.append("--{0}={1}".format(argName, argVal))
       args = parser.parse_args(argsList)
       
@@ -664,8 +664,8 @@ def main(args):
       args = parser.parse_args(("@" + args.paramFile,))
       
    # echo all parameters to the log file
-   for argName, argVal in vars(args).iteritems():
-      print(argName, argVal)
+   for argName, argVal in vars(args).items():
+      print((argName, argVal))
     
    # change working directory to runDir
    if args.runPath != None:
@@ -902,8 +902,8 @@ def main(args):
    
    # log run completion
    timeEnd = datetime.datetime.now()
-   print("smCounter completed running at " + str(timeEnd))
-   print("smCounter total time: "+ str(timeEnd-timeStart))
+   print(("smCounter completed running at " + str(timeEnd)))
+   print(("smCounter total time: "+ str(timeEnd-timeStart)))
    
    # pass threshold back to caller
    return threshold
